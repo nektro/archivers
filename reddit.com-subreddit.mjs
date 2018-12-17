@@ -16,18 +16,19 @@ async function main() {
     args.shift();
     if (args.length === 0) return;
     //
-    return fetch_subreddit(args[0]);
+    return fetch_subreddit(args[0])
+    .then(() => console.log("done!"));
 }
-async function fetch_subreddit(sub) {
+async function fetch_subreddit(sub, after) {
+    if (after !== undefined) console.log(`Get: ${after}`)
     const folder = `reddit_sub_${sub}`;
     await promisify(fs.mkdir, [folder]).catch(noop);
-    const a = await fetch(`https://old.reddit.com/r/${sub}/.json`).then(x => x.json());
+    const a = await fetch(`https://old.reddit.com/r/${sub}/.json?show=all` + (after === undefined ? "" : `&after=${after}`)).then(x => x.json());
     const b = a.data;
     if (b.children.length === 0) return;
     //
     return Promise.all(b.children.map(x => fetch_post(folder, x.data)))
-    .then(x => (b.after !== null) ? fetch_subreddit_after(sub, folder, b.after) : noop())
-    .then(x => console.log("done!"));
+    .then(x => (b.after !== null) ? fetch_subreddit(sub, b.after) : noop())
 }
 async function noop() {
     return Promise.resolve();
@@ -39,7 +40,7 @@ async function fetch_post(folder, post_data) {
         return promisify(fs.access, [file_path, fs.constants.F_OK])
         .catch(x => Promise.resolve()
             .then(x => promisify(fs.writeFile, [file_path, post_data.selftext]))
-            .then(x => console.log(`Saved post: ${local_file}`))
+            .then(x => console.log(`[download] ${local_file}`))
         );
     }
     else {
@@ -57,15 +58,6 @@ async function fetch_post(folder, post_data) {
             .then(x => console.log(`Saved post: ${local_file}`))
         );
     }
-}
-async function fetch_subreddit_after(sub, folder, after) {
-    console.log(`Grabbing posts after: ${after}`)
-    const a = await fetch(`https://old.reddit.com/r/${sub}/.json?after=${after}`).then(x => x.json());
-    const b = a.data;
-    if (b.children.length === 0) return;
-    //
-    await Promise.all(b.children.map(x => fetch_post(folder, x.data)));
-    return (b.after !== null) ? fetch_subreddit_after(sub, folder, b.after) : noop();
 }
 //
 //
