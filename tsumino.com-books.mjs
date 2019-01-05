@@ -23,8 +23,7 @@ async function main() {
     if (args.length === 0) return;
     //
     return Promise.resolve()
-    .then(() => promisify(fs.mkdir, [path.resolve(__dirname, "tsumino")]))
-    .catch(noop)
+    .then(() => promisify(fs.mkdir, [path.resolve(__dirname, "tsumino")])).catch(noop)
     .finally(() => fetch_book(parseInt(args[0])));
 }
 async function noop() {
