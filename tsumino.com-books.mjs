@@ -1,5 +1,8 @@
 // @author Meghan#2032 <https://nektro.net/> <https://paypal.me/nektro>
 //
+// https://www.tsumino.com/Book/Info/45788
+// node --experimental-modules ./tsumino.com-books.mjs 45788
+//
 //
 import fetch from "node-fetch";
 import promisify from "js-promisify";
