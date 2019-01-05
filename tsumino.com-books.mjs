@@ -44,23 +44,24 @@ async function fetch_book(n) {
     const d = c.reader_page_urls;
     const pages_path = path.resolve(__dirname, "tsumino", n.toString());
     return promisify(fs.mkdir, [pages_path])
-    .then(() => {
-        return Promise.all(d.map((v,i,a) => download_book_page(n,v,i,a.length.toString().length)))
-        .then(() => {
-            console.log("Converting to .pdf...");
-            const doc = new pdfkit({ autoFirstPage:false });
-            const pdf_path = path.resolve(__dirname, "tsumino", "pdf", `${n}.pdf`);
-            doc.pipe(fs.createWriteStream(pdf_path));
-            const fsl = fs.readdirSync(pages_path);
-            for (let i = 0; i < fsl.length; i++) {
-                const e = fsl[i];
-                doc.addPage();
-                doc.image(path.resolve(pages_path, e), 0, 0, { fit: [doc.page.width, doc.page.height] });
-            }
-            doc.save();
-            doc.end();
-            console.log(`Done!`);
-        });
+    .then(async() => {
+        for (let i = 0; i < d.length; i++) {
+            const v = d[i];
+            await download_book_page(n,v,i,d.length.toString().length);
+        }
+        console.log("Converting to .pdf...");
+        const doc = new pdfkit({ autoFirstPage:false });
+        const pdf_path = path.resolve(__dirname, "tsumino", "pdf", `${n}.pdf`);
+        doc.pipe(fs.createWriteStream(pdf_path));
+        const fsl = fs.readdirSync(pages_path);
+        for (let i = 0; i < fsl.length; i++) {
+            const e = fsl[i];
+            doc.addPage();
+            doc.image(path.resolve(pages_path, e), 0, 0, { fit: [doc.page.width, doc.page.height] });
+        }
+        doc.save();
+        doc.end();
+        console.log(`Done!`);
     })
     .catch(() => {
         console.log(`Book ${n} was already saved!`);
@@ -70,10 +71,10 @@ async function fetch_book(n) {
 async function download_book_page(x, obj_id, n, mx) {
     const obj_id_safe = obj_id.replaceAll("=","").replaceAll("\\+","-").replaceAll("\/","_");
     const name = `${n.toString().padStart(mx,"0")} - ${obj_id_safe}.jpg`;
-    // console.log(`Saving page ${x} / ${name}`);
     const url = `http://www.tsumino.com/Image/Object?name=${encodeURIComponent(obj_id)}`;
     const file_path = path.resolve(__dirname, "tsumino", x.toString(), name)
     //
+    // if (n > 0) await fetch(`http://www.tsumino.com/Read/Process/${x}/${n}`);
     return promisify(fs.access, [file_path, fs.constants.F_OK])
     .catch(w => Promise.resolve()
         .then(w => fetch(url))
