@@ -3,6 +3,7 @@
 //
 import fetch from "node-fetch";
 import promisify from "js-promisify";
+import pdfkit from "pdfkit";
 //
 import path from "path";
 import fs from "fs";
@@ -24,6 +25,7 @@ async function main() {
     //
     return Promise.resolve()
     .then(() => promisify(fs.mkdir, [path.resolve(__dirname, "tsumino")])).catch(noop)
+    .then(() => promisify(fs.mkdir, [path.resolve(__dirname, "tsumino", "pdf")])).catch(noop)
     .finally(() => fetch_book(parseInt(args[0])));
 }
 async function noop() {
@@ -40,9 +42,25 @@ async function fetch_book(n) {
     console.log(`Saving tsumino.com book ${n}`)
     const c = await b.json();
     const d = c.reader_page_urls;
-    return promisify(fs.mkdir, [path.resolve(__dirname, "tsumino", n.toString())])
+    const pages_path = path.resolve(__dirname, "tsumino", n.toString());
+    return promisify(fs.mkdir, [pages_path])
     .then(() => {
-        return Promise.all(d.map((v,i,a) => download_book_page(n,v,i,a.length.toString().length)));
+        return Promise.all(d.map((v,i,a) => download_book_page(n,v,i,a.length.toString().length)))
+        .then(() => {
+            console.log("Converting to .pdf...");
+            const doc = new pdfkit({ autoFirstPage:false });
+            const pdf_path = path.resolve(__dirname, "tsumino", "pdf", `${n}.pdf`);
+            doc.pipe(fs.createWriteStream(pdf_path));
+            const fsl = fs.readdirSync(pages_path);
+            for (let i = 0; i < fsl.length; i++) {
+                const e = fsl[i];
+                doc.addPage();
+                doc.image(path.resolve(pages_path, e), 0, 0, { fit: [doc.page.width, doc.page.height] });
+            }
+            doc.save();
+            doc.end();
+            console.log(`Done!`);
+        });
     })
     .catch(() => {
         console.log(`Book ${n} was already saved!`);
